@@ -1,24 +1,36 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { User } from './entities/user.entity';
-import { UserService as UsersService } from './users.service';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import {
   CreateAccountInput,
   CreateAccountOutput,
 } from './dtos/create-account.dto';
+import { User } from './entities/user.entity';
+import { UserService } from './users.service';
 
 @Resolver((of) => User)
-export class UsersResolver {
-  constructor(
-    @InjectRepository(User) private readonly usersService: UsersService,
-  ) {}
+export class UserResolver {
+  constructor(private readonly usersService: UserService) {}
 
   @Query((returns) => Boolean)
   hi() {
-    1 + 1;
     return true;
   }
 
-  @Mutation((retruns) => CreateAccountOutput)
-  createAccount(@Args('input') createAccountInput: CreateAccountInput) {}
+  @Mutation((returns) => CreateAccountOutput)
+  async createAccount(
+    @Args('input') createAccountInput: CreateAccountInput,
+  ): Promise<CreateAccountOutput> {
+    try {
+      const [ok, error] =
+        await this.usersService.createAccount(createAccountInput);
+      return {
+        ok,
+        error,
+      };
+    } catch (error) {
+      return {
+        error,
+        ok: false,
+      };
+    }
+  }
 }
