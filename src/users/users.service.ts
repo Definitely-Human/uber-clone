@@ -60,7 +60,7 @@ export class UserService {
           error: 'wrong password',
         };
       }
-      const token = jwt.sign({ id: user.id }, this.config.get('SECRET_KEY'));
+      const token = this.jwtService.sign(user.id);
       return {
         ok: true,
         token: token,
@@ -71,5 +71,13 @@ export class UserService {
         error,
       };
     }
+  }
+
+  async findById(id: number): Promise<User> {
+    return this.users.findOne({
+      where: {
+        id,
+      },
+    });
   }
 }
