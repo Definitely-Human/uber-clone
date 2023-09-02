@@ -1,7 +1,7 @@
 import * as FormData from 'form-data';
 import { Injectable, Inject } from '@nestjs/common';
 import { CONFIG_OPTIONS } from 'src/common/common.constants';
-import { MailModuleOptions } from './mail.interfaces';
+import { EmailVar, MailModuleOptions } from './mail.interfaces';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
@@ -13,14 +13,17 @@ export class MailService {
     private readonly httpService: HttpService,
   ) {}
 
-  private async sendEmail(subject: string, template: string) {
+  private async sendEmail(
+    subject: string,
+    template: string,
+    emailVars: EmailVar[],
+  ) {
     const form = new FormData();
-    form.append('from', `Excited User <mailgun@${this.options.domain}>`);
+    form.append('from', `Definitely Human <mailgun@${this.options.domain}>`);
     form.append('to', `odest66@gmail.com`);
     form.append('template', template);
-    form.append('v:code', 'sdfasdf');
-    form.append('v:username', 'Human!!!');
     form.append('subject', subject);
+    emailVars.forEach((eVar) => form.append(`v:${eVar.key}`, eVar.value));
     const response = await this.httpService
       .axiosRef(`https://api.mailgun.net/v3/${this.options.domain}/messages`, {
         method: 'POST',
@@ -50,5 +53,12 @@ export class MailService {
         }
         console.log(error.config);
       });
+  }
+
+  sendVerificationEmail(email: string, code: string) {
+    this.sendEmail('Verify Your Email', 'confirm account', [
+      { key: 'code', value: code },
+      { key: 'username', value: email },
+    ]);
   }
 }

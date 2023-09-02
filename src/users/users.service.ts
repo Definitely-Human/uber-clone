@@ -3,13 +3,18 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as jwt from 'jsonwebtoken';
 import { Injectable } from '@nestjs/common';
-import { CreateAccountInput } from './dtos/create-account.dto';
-import { LoginInput } from './dtos/login.dto';
+import {
+  CreateAccountInput,
+  CreateAccountOutput,
+} from './dtos/create-account.dto';
+import { LoginInput, LoginOutput } from './dtos/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from 'src/jwt/jwt.service';
-import { EditProfileInput } from './dtos/edit-profile';
+import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile';
 import { Verification } from './entities/verification.entity';
 import { VerifyEmailOutput } from './dtos/verify-email.dto';
+import { MailService } from 'src/mail/mail.service';
+import { UserProfileOutput } from './dtos/user-profile.dto';
 
 @Injectable()
 export class UserService {
@@ -19,13 +24,14 @@ export class UserService {
     private readonly verifications: Repository<Verification>,
     private readonly config: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async createAccount({
     email,
     password,
     role,
-  }: CreateAccountInput): Promise<{ ok: boolean; error?: string }> {
+  }: CreateAccountInput): Promise<CreateAccountOutput> {
     try {
       const exists = await this.users.findOne({
         where: {
@@ -39,11 +45,14 @@ export class UserService {
       const user = await this.users.save(
         this.users.create({ email, password, role }),
       );
-      await this.verifications.save(
+
+      const verification = await this.verifications.save(
         this.verifications.create({
           user: user,
         }),
       );
+
+      this.mailService.sendVerificationEmail(user.email, verification.code);
 
       return { ok: true };
     } catch (e) {
@@ -51,10 +60,7 @@ export class UserService {
     }
   }
 
-  async login({
-    email,
-    password,
-  }: LoginInput): Promise<{ ok: boolean; error?: string; token?: string }> {
+  async login({ email, password }: LoginInput): Promise<LoginOutput> {
     try {
       const user = await this.users.findOne({
         where: {
@@ -88,32 +94,55 @@ export class UserService {
     }
   }
 
-  async findById(id: number): Promise<User> {
-    return this.users.findOne({
-      where: {
-        id,
-      },
-    });
+  async findById(id: number): Promise<UserProfileOutput> {
+    try {
+      const user = await this.users.findOne({
+        where: {
+          id,
+        },
+      });
+      if (user) {
+        return {
+          ok: true,
+          user: user,
+        };
+      }
+    } catch (error) {
+      return { ok: false, error: 'User not found' };
+    }
   }
 
   async editProfile(
     userId: number,
     { email, password }: EditProfileInput,
-  ): Promise<User> {
-    const user = await this.users.findOne({
-      where: {
-        id: userId,
-      },
-    });
-    if (email) {
-      user.email = email;
-      user.verified = false;
-      await this.verifications.save(this.verifications.create(user));
+  ): Promise<EditProfileOutput> {
+    try {
+      const user = await this.users.findOne({
+        where: {
+          id: userId,
+        },
+      });
+      if (email) {
+        user.email = email;
+        user.verified = false;
+        const verification = await this.verifications.save(
+          this.verifications.create(user),
+        );
+        this.mailService.sendVerificationEmail(user.email, verification.code);
+      }
+      if (password) {
+        user.password = password;
+      }
+      await this.users.save(user);
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
     }
-    if (password) {
-      user.password = password;
-    }
-    return this.users.save(user);
   }
 
   async verifyEmail(code: string): Promise<VerifyEmailOutput> {
