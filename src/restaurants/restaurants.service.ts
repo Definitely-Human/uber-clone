@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Restaurant } from './entities/restaurant.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   CreateRestaurantInput,
@@ -143,5 +143,18 @@ export class RestaurantService {
     } catch (error) {
       return { ok: false, error: 'Could not load categories' };
     }
+  }
+
+  async countRestaurant(category: Category) {
+    return this.restaurants.count({
+      relations: {
+        category: true,
+      },
+      where: {
+        category: {
+          id: category.id,
+        },
+      },
+    });
   }
 }
