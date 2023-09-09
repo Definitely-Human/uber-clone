@@ -18,7 +18,11 @@ import {
   DeleteRestaurantOutput,
 } from './dtos/delete-restaurant.dto';
 import { AllCategoriesOutput } from './dtos/all-categories.dto';
-import { CategoryInput, CategoryOutput } from 'src/users/dtos/category.dto';
+import {
+  CategoryInput,
+  CategoryOutput,
+} from 'src/restaurants/dtos/category.dto';
+import { RestaurantInput, RestaurantOutput } from './dtos/restaurants.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -195,6 +199,28 @@ export class RestaurantService {
       return {
         ok: false,
         error: 'Could not find category.',
+      };
+    }
+  }
+
+  async allRestaurants({ page }: RestaurantInput): Promise<RestaurantOutput> {
+    try {
+      const pageSize = 5;
+      const [restaurants, totalResults] = await this.restaurants.findAndCount({
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      });
+      return {
+        ok: true,
+        results: restaurants,
+        totalPages: Math.ceil(totalResults / pageSize),
+        totalResults,
+      };
+    } catch (error) {
+      console.log(error);
+      return {
+        ok: false,
+        error: 'Could not get all restaurants.',
       };
     }
   }
