@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Restaurant } from './entities/restaurant.entity';
-import { Like, Repository } from 'typeorm';
+import { ILike, Like, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   CreateRestaurantInput,
@@ -22,7 +22,12 @@ import {
   CategoryInput,
   CategoryOutput,
 } from 'src/restaurants/dtos/category.dto';
-import { RestaurantInput, RestaurantOutput } from './dtos/restaurants.dto';
+import { RestaurantsInput, RestaurantsOutput } from './dtos/restaurants.dto';
+import { RestaurantInput, RestaurantOutput } from './dtos/restaurant.dto';
+import {
+  SearchRestaurantInput,
+  SearchRestaurantOutput,
+} from './dtos/search-restaurant.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -178,7 +183,7 @@ export class RestaurantService {
         };
       }
       const itemsPerPage = 5;
-      const restaurant = await this.restaurants.find({
+      const restaurants = await this.restaurants.find({
         where: {
           category: {
             id: category.id,
@@ -187,10 +192,10 @@ export class RestaurantService {
         take: itemsPerPage,
         skip: (page - 1) * itemsPerPage,
       });
-      category.restaurants = restaurant;
       const totalResults = await this.countRestaurant(category);
       return {
         ok: true,
+        restaurants,
         category,
         totalPages: Math.ceil(totalResults / itemsPerPage),
       };
@@ -203,7 +208,7 @@ export class RestaurantService {
     }
   }
 
-  async allRestaurants({ page }: RestaurantInput): Promise<RestaurantOutput> {
+  async allRestaurants({ page }: RestaurantsInput): Promise<RestaurantsOutput> {
     try {
       const pageSize = 5;
       const [restaurants, totalResults] = await this.restaurants.findAndCount({
@@ -222,6 +227,52 @@ export class RestaurantService {
         ok: false,
         error: 'Could not get all restaurants.',
       };
+    }
+  }
+
+  async findRestaurantById({
+    restaurantId,
+  }: RestaurantInput): Promise<RestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne({
+        where: { id: restaurantId },
+      });
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Restaurant not found',
+        };
+      }
+      return {
+        ok: true,
+        restaurant,
+      };
+    } catch (error) {
+      console.log(error);
+      return { ok: false, error: 'Could not find restaurant' };
+    }
+  }
+
+  async searchRestaurantByName({
+    query,
+    page,
+  }: SearchRestaurantInput): Promise<SearchRestaurantOutput> {
+    try {
+      const pageSize = 5;
+      const [restaurants, totalResults] = await this.restaurants.findAndCount({
+        where: { name: ILike(`%${query}%`) },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      });
+      return {
+        ok: true,
+        restaurants,
+        totalResults,
+        totalPages: Math.ceil(totalResults / pageSize),
+      };
+    } catch (error) {
+      console.log(error);
+      return { ok: false, error: 'Error when searching for restaurant.' };
     }
   }
 }
