@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
-import { User } from 'src/users/entities/user.entity';
+import { User, UserRole } from 'src/users/entities/user.entity';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
 import { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Dish } from 'src/restaurants/entities/dish.entity';
+import { GetOrdersInput, GetOrdersOutput } from './dtos/get-orders.dto';
 
 @Injectable()
 export class OrderService {
@@ -85,6 +86,48 @@ export class OrderService {
     } catch (error) {
       console.log(error);
       return { ok: false, error: 'Error when creating order.' };
+    }
+  }
+
+  async getOrders(
+    user: User,
+    { status }: GetOrdersInput,
+  ): Promise<GetOrdersOutput> {
+    try {
+      let orders: Order[];
+      if (user.role === UserRole.Client) {
+        orders = await this.orders.find({
+          where: {
+            customer: { id: user.id },
+          },
+        });
+      } else if (user.role === UserRole.Delivery) {
+        orders = await this.orders.find({
+          where: {
+            driver: { id: user.id },
+          },
+        });
+      } else if (user.role === UserRole.Owner) {
+        const restaurants = await this.restaurants.find({
+          where: {
+            owner: { id: user.id },
+          },
+          select: ['orders'],
+          relations: ['orders'],
+        });
+        orders = restaurants.map((restaurant) => restaurant.orders).flat(1);
+        return {
+          ok: true,
+          orders,
+        };
+      }
+      return { ok: true, orders };
+    } catch (error) {
+      console.log(error);
+      return {
+        ok: true,
+        error: 'Error when getting orders.',
+      };
     }
   }
 }
