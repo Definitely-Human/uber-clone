@@ -29,6 +29,7 @@ import {
   SearchRestaurantOutput,
 } from './dtos/search-restaurant.dto';
 import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
+import { Dish } from './entities/dish.entity';
 
 @Injectable()
 export class RestaurantService {
@@ -36,6 +37,8 @@ export class RestaurantService {
     @InjectRepository(Restaurant)
     private readonly restaurants: Repository<Restaurant>,
     private readonly categories: CategoryRepository,
+    @InjectRepository(Dish)
+    private readonly dishes: Repository<Dish>,
   ) {}
 
   async createRestaurant(
@@ -283,6 +286,19 @@ export class RestaurantService {
     createDishInput: CreateDishInput,
   ): Promise<CreateDishOutput> {
     try {
+      const restaurant = await this.restaurants.findOne({
+        where: { id: createDishInput.restaurantId },
+      });
+      if (!restaurant) return { ok: false, error: 'Restaurant not found' };
+      if (owner.id != restaurant.ownerId)
+        return {
+          ok: false,
+          error: "You cannot add dish to restaurant you don't own.",
+        };
+      await this.dishes.save(
+        this.dishes.create({ ...createDishInput, restaurant }),
+      );
+      return { ok: true };
     } catch (error) {
       console.log(error);
       return { ok: false, error: 'Error creating dish.' };
