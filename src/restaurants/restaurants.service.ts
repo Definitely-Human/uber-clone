@@ -28,6 +28,7 @@ import {
   SearchRestaurantInput,
   SearchRestaurantOutput,
 } from './dtos/search-restaurant.dto';
+import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
 
 @Injectable()
 export class RestaurantService {
@@ -236,6 +237,7 @@ export class RestaurantService {
     try {
       const restaurant = await this.restaurants.findOne({
         where: { id: restaurantId },
+        relations: ['menu'],
       });
       if (!restaurant) {
         return {
@@ -273,6 +275,17 @@ export class RestaurantService {
     } catch (error) {
       console.log(error);
       return { ok: false, error: 'Error when searching for restaurant.' };
+    }
+  }
+
+  async createDish(
+    owner: User,
+    createDishInput: CreateDishInput,
+  ): Promise<CreateDishOutput> {
+    try {
+    } catch (error) {
+      console.log(error);
+      return { ok: false, error: 'Error creating dish.' };
     }
   }
 }
