@@ -58,7 +58,7 @@ export class User extends CoreEntity {
   rides: Order[];
 
   @Field((type) => [Payment])
-  @OneToMany((type) => Payment, (Payment) => Payment.user)
+  @OneToMany((type) => Payment, (Payment) => Payment.user, { eager: true })
   payments: Payment[];
 
   @BeforeInsert()
